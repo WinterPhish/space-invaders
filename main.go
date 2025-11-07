@@ -44,7 +44,6 @@ type Enemy struct {
 	enemyY  int
 	vEnemyY int
 	vEnemyX int
-	dead    bool
 }
 
 type Enemies []Enemy
@@ -75,30 +74,24 @@ func shoot(g *Game) {
 	}
 }
 
-func spawnEnemy(g *Game) {
-	g.enemies = append(g.enemies, Enemy{enemyX: frameWidth / 2, enemyY: enemyY, vEnemyY: 0, vEnemyX: 0, dead: false})
+func spawnWave(g *Game) {
+	for i := range 10 {
+		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY, vEnemyY: 0, vEnemyX: 0})
+	}
 }
 
 func (e Enemies) update(g *Game) {
 	if len(g.enemies) == 0 {
-		spawnEnemy(g)
+		spawnWave(g)
 		print("Spawned Enemy\n")
-	}
-	for _, enemy := range g.enemies {
-		if !enemy.dead {
-			enemy.enemyY += enemy.vEnemyY
-			enemy.enemyX += enemy.vEnemyX
-		}
 	}
 }
 
 func (e Enemies) draw(screen *ebiten.Image) {
 	for _, enemy := range e {
-		if !enemy.dead {
-			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(float64(enemy.enemyX), float64(enemy.enemyY))
-			screen.DrawImage(enemyImage, op)
-		}
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(enemy.enemyX), float64(enemy.enemyY))
+		screen.DrawImage(enemyImage, op)
 	}
 }
 
@@ -119,10 +112,13 @@ func (g *Game) enemyHit() bool {
 		return false
 	}
 
-	if g.bullet.bulletY == g.enemies[0].enemyY {
-		if g.bullet.bulletX >= g.enemies[0].enemyX-enemyWidth/2 && g.bullet.bulletX <= g.enemies[0].enemyX+enemyWidth/2 {
-			print("Bullet X matched Enemy X\n")
-			g.enemies[0].dead = true
+	for i, enemy := range g.enemies {
+		if g.bullet.bulletY != enemy.enemyY {
+			return false
+		}
+		if g.bullet.bulletX >= enemy.enemyX-enemyWidth/2 && g.bullet.bulletX <= enemy.enemyX+enemyWidth/2 {
+			print(len(g.enemies), " Enemies left\n")
+			g.enemies = append(g.enemies[:i], g.enemies[i+1:]...)
 			g.bullet = nil
 			return true
 		}
