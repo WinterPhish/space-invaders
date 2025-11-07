@@ -9,20 +9,22 @@ import (
 )
 
 const (
-	frameWidth  = 320
-	frameHeight = 240
-	playerY     = frameHeight/2 + frameHeight/4
+	frameWidth  = 640
+	frameHeight = 480
+	playerY     = frameHeight/2 + frameHeight/4 + frameHeight/8
+	enemyY      = frameHeight/2 - frameHeight/4 - frameHeight/8
 )
 
 var (
 	playerImage *ebiten.Image
 	bulletImage *ebiten.Image
+	enemyImage  *ebiten.Image
 )
 
 type Game struct {
-	player   Player
-	bullet   *Bullet
-	ennemies []string
+	player  Player
+	bullet  *Bullet
+	enemies Enemies
 }
 
 type Player struct {
@@ -37,12 +39,15 @@ type Bullet struct {
 	vBulletY int
 }
 
-func (g *Game) Update() error {
-	g.keyPressed()
-	g.player.update()
-	g.bullet.update(g)
-	return nil
+type Enemy struct {
+	enemyX  int
+	enemyY  int
+	vEnemyY int
+	vEnemyX int
+	dead    bool
 }
+
+type Enemies []Enemy
 
 func (g *Game) keyPressed() {
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
@@ -70,11 +75,65 @@ func shoot(g *Game) {
 	}
 }
 
+func spawnEnemy(g *Game) {
+	g.enemies = append(g.enemies, Enemy{enemyX: frameWidth / 2, enemyY: enemyY, vEnemyY: 0, vEnemyX: 0, dead: false})
+}
+
+func (e Enemies) update(g *Game) {
+	if len(g.enemies) == 0 {
+		spawnEnemy(g)
+		print("Spawned Enemy\n")
+	}
+	for _, enemy := range g.enemies {
+		if !enemy.dead {
+			enemy.enemyY += enemy.vEnemyY
+			enemy.enemyX += enemy.vEnemyX
+		}
+	}
+}
+
+func (e Enemies) draw(screen *ebiten.Image) {
+	for _, enemy := range e {
+		if !enemy.dead {
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(float64(enemy.enemyX), float64(enemy.enemyY))
+			screen.DrawImage(enemyImage, op)
+		}
+	}
+}
+
 func (p *Player) update() {
 	p.playerX += p.vPlayerX
 	if p.vPlayerX != 0 {
 		p.vPlayerX = 0
 	}
+}
+
+func (g *Game) enemyHit() bool {
+	const (
+		enemyWidth  = 32
+		enemyHeight = 32
+	)
+
+	if g.bullet == nil || len(g.enemies) == 0 {
+		return false
+	}
+
+	if g.bullet.bulletY == g.enemies[0].enemyY {
+		if g.bullet.bulletX >= g.enemies[0].enemyX-enemyWidth/2 && g.bullet.bulletX <= g.enemies[0].enemyX+enemyWidth/2 {
+			print("Bullet X matched Enemy X\n")
+			g.enemies[0].dead = true
+			g.bullet = nil
+			return true
+		}
+		print("Bullet Y matched Enemy Y\n")
+	}
+	return false
+}
+
+func (g *Game) playerHit() bool {
+	// for when enemies will shoot bullets
+	return false
 }
 
 func (p *Player) draw(screen *ebiten.Image) {
@@ -113,11 +172,31 @@ func init() {
 		log.Fatal(err)
 	}
 	bulletImage = ebiten.NewImageFromImage(img)
+	img, _, err = ebitenutil.NewImageFromFile("assets/enemy.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	enemyImage = ebiten.NewImageFromImage(img)
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	g.player.draw(screen)
 	g.bullet.draw(screen)
+	g.enemies.draw(screen)
+}
+
+func (g *Game) Update() error {
+	g.keyPressed()
+	g.player.update()
+	g.bullet.update(g)
+	g.enemies.update(g)
+	if g.enemyHit() {
+		print("Enemy Hit!\n")
+	}
+	if g.playerHit() {
+		log.Fatal("Game Over")
+	}
+	return nil
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
