@@ -75,20 +75,51 @@ func shoot(g *Game) {
 }
 
 func spawnWave(g *Game) {
-	for i := range 10 {
+	// create 15 enemies spaced horizontally
+	for i := 0; i < 12; i++ {
 		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY, vEnemyY: 0, vEnemyX: 0})
 	}
 }
 
-func (e Enemies) update(g *Game) {
-	if len(g.enemies) == 0 {
+func (e *Enemies) update(g *Game) {
+	if len(*e) == 0 {
 		spawnWave(g)
 		print("Spawned Enemy\n")
 	}
+
+	// Detect if any enemy hit a boundary. Do not modify velocities
+	hitRight := false
+	hitLeft := false
+	for i := range *e {
+		if (*e)[i].enemyX > frameWidth-32 {
+			hitRight = true
+		}
+		if (*e)[i].enemyX <= 0 {
+			hitLeft = true
+		}
+	}
+
+	// Apply direction change once per frame
+	if hitRight {
+		for j := range *e {
+			(*e)[j].vEnemyX = -2
+			(*e)[j].enemyY += 16
+		}
+	} else if hitLeft {
+		for j := range *e {
+			(*e)[j].vEnemyX = 2
+		}
+	}
+
+	// update positions using velocities.
+	for i := range *e {
+		(*e)[i].enemyX += (*e)[i].vEnemyX
+		(*e)[i].enemyY += (*e)[i].vEnemyY
+	}
 }
 
-func (e Enemies) draw(screen *ebiten.Image) {
-	for _, enemy := range e {
+func (e *Enemies) draw(screen *ebiten.Image) {
+	for _, enemy := range *e {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(float64(enemy.enemyX), float64(enemy.enemyY))
 		screen.DrawImage(enemyImage, op)
@@ -122,7 +153,6 @@ func (g *Game) enemyHit() bool {
 			g.bullet = nil
 			return true
 		}
-		print("Bullet Y matched Enemy Y\n")
 	}
 	return false
 }
