@@ -3,6 +3,7 @@ package main
 import (
 	_ "image/png"
 	"log"
+	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -29,9 +30,10 @@ var (
 )
 
 type Game struct {
-	player  Player
-	bullet  *Bullet
-	enemies Enemies
+	player       Player
+	playerBullet *PlayerBullet
+	enemies      Enemies
+	enemyBullets EnemyBullets
 }
 
 type Player struct {
@@ -40,7 +42,13 @@ type Player struct {
 	vPlayerY int
 }
 
-type Bullet struct {
+type PlayerBullet struct {
+	bulletX  int
+	bulletY  int
+	vBulletY int
+}
+
+type EnemyBullet struct {
 	bulletX  int
 	bulletY  int
 	vBulletY int
@@ -56,6 +64,8 @@ type Enemy struct {
 
 type Enemies []Enemy
 
+type EnemyBullets []EnemyBullet
+
 func (g *Game) keyPressed() {
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
 		moveRight(g)
@@ -64,7 +74,7 @@ func (g *Game) keyPressed() {
 		moveLeft(g)
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyZ) {
-		shoot(g)
+		playerShoot(g)
 	}
 }
 
@@ -76,9 +86,9 @@ func moveLeft(g *Game) {
 	g.player.vPlayerX -= 4
 }
 
-func shoot(g *Game) {
-	if g.bullet == nil {
-		g.bullet = &Bullet{bulletX: g.player.playerX, bulletY: playerY, vBulletY: -4}
+func playerShoot(g *Game) {
+	if g.playerBullet == nil {
+		g.playerBullet = &PlayerBullet{bulletX: g.player.playerX, bulletY: playerY + 4, vBulletY: -4}
 	}
 }
 
@@ -125,8 +135,9 @@ func (e *Enemies) update(g *Game) {
 		}
 	}
 
-	// update positions using velocities.
+	// update positions using velocities and possibly shoot.
 	for i := range *e {
+		(*e)[i].enemyShoot(g)
 		(*e)[i].enemyX += (*e)[i].vEnemyX
 		(*e)[i].enemyY += (*e)[i].vEnemyY
 	}
@@ -148,6 +159,14 @@ func (e *Enemies) draw(screen *ebiten.Image) {
 	}
 }
 
+func (e Enemy) enemyShoot(g *Game) {
+	if randomNumber := rand.Float64(); randomNumber < 0.0005 {
+		// Enemy shoots a bullet (not implemented)
+		print("Enemy at (", e.enemyX, ",", e.enemyY, ") shoots!\n")
+		g.enemyBullets = append(g.enemyBullets, EnemyBullet{bulletX: e.enemyX, bulletY: e.enemyY + 16, vBulletY: 4})
+	}
+}
+
 func (p *Player) update() {
 	p.playerX += p.vPlayerX
 	if p.vPlayerX != 0 {
@@ -161,23 +180,23 @@ func (g *Game) enemyHit() bool {
 		enemyHeight = 32
 	)
 
-	if g.bullet == nil || len(g.enemies) == 0 {
+	if g.playerBullet == nil || len(g.enemies) == 0 {
 		return false
 	}
 
 	for i, enemy := range g.enemies {
 
 		// Check if bullet is within vertical range of enemy
-		bulletInVerticalRange := g.bullet.bulletY == enemy.enemyY
+		bulletInVerticalRange := g.playerBullet.bulletY == enemy.enemyY
 
 		// Check if bullet hits enemy horizontally
-		bulletHitsHorizontally := g.bullet.bulletX >= enemy.enemyX-enemySize/2 &&
-			g.bullet.bulletX <= enemy.enemyX+enemySize/2
+		bulletHitsHorizontally := g.playerBullet.bulletX >= enemy.enemyX-enemySize/2 &&
+			g.playerBullet.bulletX <= enemy.enemyX+enemySize/2
 
 		if bulletInVerticalRange && bulletHitsHorizontally {
 			print(len(g.enemies), " Enemies left\n")
 			g.enemies = append(g.enemies[:i], g.enemies[i+1:]...)
-			g.bullet = nil
+			g.playerBullet = nil
 			return true
 		}
 	}
@@ -185,7 +204,17 @@ func (g *Game) enemyHit() bool {
 }
 
 func (g *Game) playerHit() bool {
-	// for when enemies will shoot bullets
+	for _, bullet := range g.enemyBullets {
+		// Check if bullet is within vertical range of player
+		bulletInVerticalRange := bullet.bulletY == playerY
+
+		// Check if bullet hits player horizontally
+		bulletHitsHorizontally := bullet.bulletX >= g.player.playerX-16 &&
+			bullet.bulletX <= g.player.playerX+16
+		if bulletInVerticalRange && bulletHitsHorizontally {
+			return true
+		}
+	}
 	return false
 }
 
@@ -195,23 +224,47 @@ func (p *Player) draw(screen *ebiten.Image) {
 	screen.DrawImage(playerImage, op)
 }
 
-func (b *Bullet) update(g *Game) {
+func (b *PlayerBullet) update(g *Game) {
 	if b == nil {
 		return
 	}
 	b.bulletY += b.vBulletY
 	if b.bulletY < 0 {
-		g.bullet = nil
+		g.playerBullet = nil
 	}
 }
 
-func (b *Bullet) draw(screen *ebiten.Image) {
+func (b *PlayerBullet) draw(screen *ebiten.Image) {
 	if b == nil {
 		return
 	}
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(b.bulletX), float64(b.bulletY))
 	screen.DrawImage(bulletImage, op)
+}
+
+func (b *EnemyBullets) update() {
+	if b == nil {
+		return
+	}
+	// Iterate backwards when removing elements to avoid index errors that occur if we remove items while iterating forward with a range
+	for i := len(*b) - 1; i >= 0; i-- {
+		(*b)[i].bulletY += (*b)[i].vBulletY
+		if (*b)[i].bulletY > frameHeight {
+			*b = append((*b)[:i], (*b)[i+1:]...)
+		}
+	}
+}
+
+func (b *EnemyBullets) draw(screen *ebiten.Image) {
+	if b == nil {
+		return
+	}
+	for _, bullet := range *b {
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(bullet.bulletX), float64(bullet.bulletY))
+		screen.DrawImage(bulletImage, op)
+	}
 }
 
 func init() {
@@ -244,15 +297,17 @@ func init() {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	g.player.draw(screen)
-	g.bullet.draw(screen)
+	g.playerBullet.draw(screen)
 	g.enemies.draw(screen)
+	g.enemyBullets.draw(screen)
 }
 
 func (g *Game) Update() error {
 	g.keyPressed()
 	g.player.update()
-	g.bullet.update(g)
+	g.playerBullet.update(g)
 	g.enemies.update(g)
+	g.enemyBullets.update()
 	if g.enemyHit() {
 		print("Enemy Hit!\n")
 	}
