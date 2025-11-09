@@ -21,9 +21,11 @@ const (
 )
 
 var (
-	playerImage *ebiten.Image
-	bulletImage *ebiten.Image
-	enemyImage  *ebiten.Image
+	playerImage  *ebiten.Image
+	bulletImage  *ebiten.Image
+	squidImage   *ebiten.Image
+	crabImage    *ebiten.Image
+	octopusImage *ebiten.Image
 )
 
 type Game struct {
@@ -85,11 +87,11 @@ func spawnWave(g *Game, squid int, octopus int, crab int) {
 	for i := range squid {
 		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY, vEnemyY: 0, vEnemyX: 0, enemyType: Squid})
 	}
-	for i := range octopus {
-		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 32, vEnemyY: 0, vEnemyX: 0, enemyType: Octopus})
-	}
 	for i := range crab {
-		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 64, vEnemyY: 0, vEnemyX: 0, enemyType: Crab})
+		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 32, vEnemyY: 0, vEnemyX: 0, enemyType: Crab})
+	}
+	for i := range octopus {
+		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 64, vEnemyY: 0, vEnemyX: 0, enemyType: Octopus})
 	}
 }
 
@@ -134,7 +136,15 @@ func (e *Enemies) draw(screen *ebiten.Image) {
 	for _, enemy := range *e {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(float64(enemy.enemyX), float64(enemy.enemyY))
-		screen.DrawImage(enemyImage, op)
+		switch enemy.enemyType {
+		case Squid:
+			screen.DrawImage(squidImage, op)
+		case Crab:
+			screen.DrawImage(crabImage, op)
+		case Octopus:
+			screen.DrawImage(octopusImage, op)
+		}
+
 	}
 }
 
@@ -215,11 +225,21 @@ func init() {
 		log.Fatal(err)
 	}
 	bulletImage = ebiten.NewImageFromImage(img)
-	img, _, err = ebitenutil.NewImageFromFile("assets/enemy.png")
+	img, _, err = ebitenutil.NewImageFromFile("assets/squid.png")
 	if err != nil {
 		log.Fatal(err)
 	}
-	enemyImage = ebiten.NewImageFromImage(img)
+	squidImage = ebiten.NewImageFromImage(img)
+	img, _, err = ebitenutil.NewImageFromFile("assets/crab.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	crabImage = ebiten.NewImageFromImage(img)
+	img, _, err = ebitenutil.NewImageFromFile("assets/octopus.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	octopusImage = ebiten.NewImageFromImage(img)
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
