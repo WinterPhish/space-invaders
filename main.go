@@ -13,6 +13,11 @@ const (
 	frameHeight = 480
 	playerY     = frameHeight/2 + frameHeight/4 + frameHeight/8
 	enemyY      = frameHeight/2 - frameHeight/4 - frameHeight/8
+
+	_ = iota
+	Squid
+	Octopus
+	Crab
 )
 
 var (
@@ -40,10 +45,11 @@ type Bullet struct {
 }
 
 type Enemy struct {
-	enemyX  int
-	enemyY  int
-	vEnemyY int
-	vEnemyX int
+	enemyX    int
+	enemyY    int
+	vEnemyY   int
+	vEnemyX   int
+	enemyType int
 }
 
 type Enemies []Enemy
@@ -74,16 +80,22 @@ func shoot(g *Game) {
 	}
 }
 
-func spawnWave(g *Game) {
+func spawnWave(g *Game, squid int, octopus int, crab int) {
 	// create 15 enemies spaced horizontally
-	for i := 0; i < 12; i++ {
-		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY, vEnemyY: 0, vEnemyX: 0})
+	for i := range squid {
+		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY, vEnemyY: 0, vEnemyX: 0, enemyType: Squid})
+	}
+	for i := range octopus {
+		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 32, vEnemyY: 0, vEnemyX: 0, enemyType: Octopus})
+	}
+	for i := range crab {
+		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 64, vEnemyY: 0, vEnemyX: 0, enemyType: Crab})
 	}
 }
 
 func (e *Enemies) update(g *Game) {
 	if len(*e) == 0 {
-		spawnWave(g)
+		spawnWave(g, 10, 10, 10)
 		print("Spawned Enemy\n")
 	}
 
@@ -135,7 +147,7 @@ func (p *Player) update() {
 
 func (g *Game) enemyHit() bool {
 	const (
-		enemyWidth  = 32
+		enemySize   = 32
 		enemyHeight = 32
 	)
 
@@ -144,10 +156,15 @@ func (g *Game) enemyHit() bool {
 	}
 
 	for i, enemy := range g.enemies {
-		if g.bullet.bulletY != enemy.enemyY {
-			return false
-		}
-		if g.bullet.bulletX >= enemy.enemyX-enemyWidth/2 && g.bullet.bulletX <= enemy.enemyX+enemyWidth/2 {
+
+		// Check if bullet is within vertical range of enemy
+		bulletInVerticalRange := g.bullet.bulletY == enemy.enemyY
+
+		// Check if bullet hits enemy horizontally
+		bulletHitsHorizontally := g.bullet.bulletX >= enemy.enemyX-enemySize/2 &&
+			g.bullet.bulletX <= enemy.enemyX+enemySize/2
+
+		if bulletInVerticalRange && bulletHitsHorizontally {
 			print(len(g.enemies), " Enemies left\n")
 			g.enemies = append(g.enemies[:i], g.enemies[i+1:]...)
 			g.bullet = nil
