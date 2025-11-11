@@ -7,6 +7,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 const (
@@ -15,8 +16,13 @@ const (
 	playerY     = frameHeight/2 + frameHeight/4 + frameHeight/8
 	enemyY      = frameHeight/2 - frameHeight/4 - frameHeight/8
 
-	_ = iota
-	Squid
+	_ GameMode = iota
+	ModeStart
+	ModePlaying
+	ModePause
+	ModeGameOver
+
+	Squid = iota
 	Octopus
 	Crab
 )
@@ -34,6 +40,7 @@ type Game struct {
 	playerBullet *PlayerBullet
 	enemies      Enemies
 	enemyBullets EnemyBullets
+	mode         GameMode
 }
 
 type Player struct {
@@ -61,6 +68,8 @@ type Enemy struct {
 	vEnemyX   int
 	enemyType int
 }
+
+type GameMode int
 
 type Enemies []Enemy
 
@@ -303,16 +312,25 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Update() error {
-	g.keyPressed()
-	g.player.update()
-	g.playerBullet.update(g)
-	g.enemies.update(g)
-	g.enemyBullets.update()
-	if g.enemyHit() {
-		print("Enemy Hit!\n")
+	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
+		if g.mode == ModePause {
+			g.mode = ModePlaying
+		} else {
+			g.mode = ModePause
+		}
 	}
-	if g.playerHit() {
-		log.Fatal("Game Over")
+	if g.mode == ModePlaying {
+		g.keyPressed()
+		g.player.update()
+		g.playerBullet.update(g)
+		g.enemies.update(g)
+		g.enemyBullets.update()
+		if g.enemyHit() {
+			print("Enemy Hit!\n")
+		}
+		if g.playerHit() {
+			log.Fatal("Game Over")
+		}
 	}
 	return nil
 }
@@ -324,7 +342,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 func main() {
 	ebiten.SetWindowSize(640, 480)
 	ebiten.SetWindowTitle("Space Invaders")
-	if err := ebiten.RunGame(&Game{}); err != nil {
+	if err := ebiten.RunGame(&Game{mode: ModePlaying}); err != nil {
 		log.Fatal(err)
 	}
 }
