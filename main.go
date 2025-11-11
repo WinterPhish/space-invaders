@@ -312,6 +312,18 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Update() error {
+	if g.mode == ModeGameOver {
+		if inpututil.IsKeyJustPressed(ebiten.KeyR) {
+			*g = Game{mode: ModePlaying}
+		}
+		return nil
+	}
+	if g.mode == ModeStart {
+		if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+			g.mode = ModePlaying
+		}
+		return nil
+	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
 		if g.mode == ModePause {
 			g.mode = ModePlaying
@@ -329,7 +341,8 @@ func (g *Game) Update() error {
 			print("Enemy Hit!\n")
 		}
 		if g.playerHit() {
-			log.Fatal("Game Over")
+			g.mode = ModeGameOver
+			print("Player Hit! Game Over!\n")
 		}
 	}
 	return nil
@@ -342,7 +355,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 func main() {
 	ebiten.SetWindowSize(640, 480)
 	ebiten.SetWindowTitle("Space Invaders")
-	if err := ebiten.RunGame(&Game{mode: ModePlaying}); err != nil {
+	if err := ebiten.RunGame(&Game{mode: ModeStart}); err != nil {
 		log.Fatal(err)
 	}
 }
