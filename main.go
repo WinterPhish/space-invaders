@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	_ "image/png"
 	"log"
 	"math/rand"
@@ -41,6 +42,7 @@ type Game struct {
 	enemies      Enemies
 	enemyBullets EnemyBullets
 	mode         GameMode
+	score        int
 }
 
 type Player struct {
@@ -170,7 +172,6 @@ func (e *Enemies) draw(screen *ebiten.Image) {
 
 func (e Enemy) enemyShoot(g *Game) {
 	if randomNumber := rand.Float64(); randomNumber < 0.0005 {
-		// Enemy shoots a bullet (not implemented)
 		print("Enemy at (", e.enemyX, ",", e.enemyY, ") shoots!\n")
 		g.enemyBullets = append(g.enemyBullets, EnemyBullet{bulletX: e.enemyX, bulletY: e.enemyY + 16, vBulletY: 4})
 	}
@@ -206,6 +207,16 @@ func (g *Game) enemyHit() bool {
 			print(len(g.enemies), " Enemies left\n")
 			g.enemies = append(g.enemies[:i], g.enemies[i+1:]...)
 			g.playerBullet = nil
+			if enemy.enemyType == Squid {
+				g.score += 10
+			}
+			if enemy.enemyType == Crab {
+				g.score += 20
+			}
+			if enemy.enemyType == Octopus {
+				g.score += 30
+			}
+			print("Score: ", g.score, "\n")
 			return true
 		}
 	}
@@ -276,6 +287,10 @@ func (b *EnemyBullets) draw(screen *ebiten.Image) {
 	}
 }
 
+func (g *Game) scoreDisplay(screen *ebiten.Image) {
+	ebitenutil.DebugPrintAt(screen, "Score: "+fmt.Sprint(g.score), 10, 10)
+}
+
 func init() {
 	img, _, err := ebitenutil.NewImageFromFile("assets/player.png")
 	if err != nil {
@@ -321,6 +336,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.playerBullet.draw(screen)
 	g.enemies.draw(screen)
 	g.enemyBullets.draw(screen)
+	g.scoreDisplay(screen)
 }
 
 func (g *Game) Update() error {
