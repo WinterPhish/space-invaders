@@ -305,6 +305,18 @@ func init() {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+	if g.mode == ModeStart {
+		ebitenutil.DebugPrintAt(screen, "Press SPACE to Start", frameWidth/2-80, frameHeight/2)
+		return
+	}
+	if g.mode == ModePause {
+		ebitenutil.DebugPrintAt(screen, "Game Paused. Press P to Resume", frameWidth/2-120, frameHeight/2)
+		return
+	}
+	if g.mode == ModeGameOver {
+		ebitenutil.DebugPrintAt(screen, "Game Over! Press R to Restart", frameWidth/2-120, frameHeight/2)
+		return
+	}
 	g.player.draw(screen)
 	g.playerBullet.draw(screen)
 	g.enemies.draw(screen)
