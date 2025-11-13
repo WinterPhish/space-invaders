@@ -43,6 +43,7 @@ type Game struct {
 	enemyBullets EnemyBullets
 	mode         GameMode
 	score        int
+	lives        int
 }
 
 type Player struct {
@@ -291,6 +292,10 @@ func (g *Game) scoreDisplay(screen *ebiten.Image) {
 	ebitenutil.DebugPrintAt(screen, "Score: "+fmt.Sprint(g.score), 10, 10)
 }
 
+func (g *Game) livesDisplay(screen *ebiten.Image) {
+	ebitenutil.DebugPrintAt(screen, "Lives: "+fmt.Sprint(g.lives), 10, frameHeight-20)
+}
+
 func init() {
 	img, _, err := ebitenutil.NewImageFromFile("assets/player.png")
 	if err != nil {
@@ -337,6 +342,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.enemies.draw(screen)
 	g.enemyBullets.draw(screen)
 	g.scoreDisplay(screen)
+	g.livesDisplay(screen)
 }
 
 func (g *Game) Update() error {
@@ -369,8 +375,11 @@ func (g *Game) Update() error {
 			print("Enemy Hit!\n")
 		}
 		if g.playerHit() {
-			g.mode = ModeGameOver
-			print("Player Hit! Game Over!\n")
+			g.lives--
+			print("Player hit! Lives left: ", g.lives, "\n")
+			if g.lives == 0 {
+				g.mode = ModeGameOver
+			}
 		}
 	}
 	return nil
@@ -383,7 +392,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 func main() {
 	ebiten.SetWindowSize(640, 480)
 	ebiten.SetWindowTitle("Space Invaders")
-	if err := ebiten.RunGame(&Game{mode: ModeStart}); err != nil {
+	if err := ebiten.RunGame(&Game{mode: ModeStart, lives: 3}); err != nil {
 		log.Fatal(err)
 	}
 }
