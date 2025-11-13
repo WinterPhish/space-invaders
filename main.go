@@ -15,7 +15,7 @@ const (
 	frameWidth  = 640
 	frameHeight = 480
 	playerY     = frameHeight/2 + frameHeight/4 + frameHeight/8
-	enemyY      = frameHeight/2 - frameHeight/4 - frameHeight/8
+	enemyY      = frameHeight/2 - frameHeight/4 - frameHeight/6
 
 	_ GameMode = iota
 	ModeStart
@@ -104,22 +104,27 @@ func playerShoot(g *Game) {
 	}
 }
 
-func spawnWave(g *Game, squid int, octopus int, crab int) {
-	// create 15 enemies spaced horizontally
-	for i := range squid {
+func spawnWave(g *Game) {
+	for i := range 11 {
 		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY, vEnemyY: 0, vEnemyX: 0, enemyType: Squid})
 	}
-	for i := range crab {
+	for i := range 11 {
 		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 32, vEnemyY: 0, vEnemyX: 0, enemyType: Crab})
 	}
-	for i := range octopus {
-		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 64, vEnemyY: 0, vEnemyX: 0, enemyType: Octopus})
+	for i := range 11 {
+		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 64, vEnemyY: 0, vEnemyX: 0, enemyType: Crab})
+	}
+	for i := range 11 {
+		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 96, vEnemyY: 0, vEnemyX: 0, enemyType: Octopus})
+	}
+	for i := range 11 {
+		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 128, vEnemyY: 0, vEnemyX: 0, enemyType: Octopus})
 	}
 }
 
 func (e *Enemies) update(g *Game) {
 	if len(*e) == 0 {
-		spawnWave(g, 10, 10, 10)
+		spawnWave(g)
 		print("Spawned Enemy\n")
 	}
 
@@ -138,12 +143,13 @@ func (e *Enemies) update(g *Game) {
 	// Apply direction change once per frame
 	if hitRight {
 		for j := range *e {
-			(*e)[j].vEnemyX = -2
+			(*e)[j].vEnemyX = -1
 			(*e)[j].enemyY += 16
 		}
 	} else if hitLeft {
 		for j := range *e {
-			(*e)[j].vEnemyX = 2
+			(*e)[j].vEnemyX = 1
+			(*e)[j].enemyY += 16
 		}
 	}
 
@@ -293,7 +299,11 @@ func (g *Game) scoreDisplay(screen *ebiten.Image) {
 }
 
 func (g *Game) livesDisplay(screen *ebiten.Image) {
-	ebitenutil.DebugPrintAt(screen, "Lives: "+fmt.Sprint(g.lives), 10, frameHeight-20)
+	for i := 0; i < g.lives; i++ {
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(16+i*32), frameHeight-30)
+		screen.DrawImage(playerImage, op)
+	}
 }
 
 func init() {
