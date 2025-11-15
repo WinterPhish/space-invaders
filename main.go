@@ -44,6 +44,7 @@ type Game struct {
 	mode         GameMode
 	score        int
 	lives        int
+	level        int
 }
 
 type Player struct {
@@ -120,12 +121,13 @@ func spawnWave(g *Game) {
 	for i := range 11 {
 		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 128, vEnemyY: 0, vEnemyX: 0, enemyType: Octopus})
 	}
+	g.level++
 }
 
 func (e *Enemies) update(g *Game) {
 	if len(*e) == 0 {
 		spawnWave(g)
-		print("Spawned Enemy\n")
+		print("Spawned Enemy on level ", g.level, "\n")
 	}
 
 	// Detect if any enemy hit a boundary. Do not modify velocities
@@ -143,12 +145,12 @@ func (e *Enemies) update(g *Game) {
 	// Apply direction change once per frame
 	if hitRight {
 		for j := range *e {
-			(*e)[j].vEnemyX = -1
+			(*e)[j].vEnemyX = -g.level
 			(*e)[j].enemyY += 16
 		}
 	} else if hitLeft {
 		for j := range *e {
-			(*e)[j].vEnemyX = 1
+			(*e)[j].vEnemyX = g.level
 			(*e)[j].enemyY += 16
 		}
 	}
@@ -402,7 +404,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 func main() {
 	ebiten.SetWindowSize(640, 480)
 	ebiten.SetWindowTitle("Space Invaders")
-	if err := ebiten.RunGame(&Game{mode: ModeStart, lives: 3}); err != nil {
+	if err := ebiten.RunGame(&Game{mode: ModeStart, lives: 3, level: 0}); err != nil {
 		log.Fatal(err)
 	}
 }
