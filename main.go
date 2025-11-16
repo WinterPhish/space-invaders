@@ -145,12 +145,12 @@ func (e *Enemies) update(g *Game) {
 	// Apply direction change once per frame
 	if hitRight {
 		for j := range *e {
-			(*e)[j].vEnemyX = -g.level
+			(*e)[j].vEnemyX = -1
 			(*e)[j].enemyY += 16
 		}
 	} else if hitLeft {
 		for j := range *e {
-			(*e)[j].vEnemyX = g.level
+			(*e)[j].vEnemyX = 1
 			(*e)[j].enemyY += 16
 		}
 	}
@@ -180,7 +180,7 @@ func (e *Enemies) draw(screen *ebiten.Image) {
 }
 
 func (e Enemy) enemyShoot(g *Game) {
-	if randomNumber := rand.Float64(); randomNumber < 0.0005 {
+	if randomNumber := rand.Float64(); randomNumber < 0.0005+float64(g.level)*0.0001 {
 		print("Enemy at (", e.enemyX, ",", e.enemyY, ") shoots!\n")
 		g.enemyBullets = append(g.enemyBullets, EnemyBullet{bulletX: e.enemyX, bulletY: e.enemyY + 16, vBulletY: 4})
 	}
