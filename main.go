@@ -26,6 +26,7 @@ const (
 	Squid = iota
 	Octopus
 	Crab
+	Ufo
 )
 
 var (
@@ -34,6 +35,7 @@ var (
 	squidImage   *ebiten.Image
 	crabImage    *ebiten.Image
 	octopusImage *ebiten.Image
+	ufoImage     *ebiten.Image
 )
 
 type Game struct {
@@ -42,6 +44,7 @@ type Game struct {
 	enemies      Enemies
 	enemyBullets EnemyBullets
 	mode         GameMode
+	ufo          *Enemy
 	score        int
 	lives        int
 	level        int
@@ -130,6 +133,11 @@ func (e *Enemies) update(g *Game) {
 		print("Spawned Enemy on level ", g.level, "\n")
 	}
 
+	if randomNumber := rand.Float64(); randomNumber < 0.001 && g.ufo == nil {
+		g.ufo = &Enemy{enemyX: 10, enemyY: 16, vEnemyX: 2, enemyType: Ufo}
+		print("UFO Spawned!\n")
+	}
+
 	// Detect if any enemy hit a boundary. Do not modify velocities
 	hitRight := false
 	hitLeft := false
@@ -139,6 +147,14 @@ func (e *Enemies) update(g *Game) {
 		}
 		if (*e)[i].enemyX <= 0 {
 			hitLeft = true
+		}
+	}
+
+	if g.ufo != nil {
+		if g.ufo.enemyX > frameWidth {
+			g.ufo = nil
+		} else {
+			g.ufo.enemyX += g.ufo.vEnemyX
 		}
 	}
 
@@ -175,8 +191,16 @@ func (e *Enemies) draw(screen *ebiten.Image) {
 		case Octopus:
 			screen.DrawImage(octopusImage, op)
 		}
-
 	}
+}
+
+func (e *Enemy) draw(screen *ebiten.Image) {
+	if e == nil {
+		return
+	}
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(e.enemyX), float64(e.enemyY))
+	screen.DrawImage(ufoImage, op)
 }
 
 func (e Enemy) enemyShoot(g *Game) {
@@ -194,10 +218,6 @@ func (p *Player) update() {
 }
 
 func (g *Game) enemyHit() bool {
-	const (
-		enemySize   = 32
-		enemyHeight = 32
-	)
 
 	if g.playerBullet == nil || len(g.enemies) == 0 {
 		return false
@@ -206,13 +226,7 @@ func (g *Game) enemyHit() bool {
 	for i, enemy := range g.enemies {
 
 		// Check if bullet is within vertical range of enemy
-		bulletInVerticalRange := g.playerBullet.bulletY == enemy.enemyY
-
-		// Check if bullet hits enemy horizontally
-		bulletHitsHorizontally := g.playerBullet.bulletX >= enemy.enemyX-enemySize/2 &&
-			g.playerBullet.bulletX <= enemy.enemyX+enemySize/2
-
-		if bulletInVerticalRange && bulletHitsHorizontally {
+		if enemyHitCheck(enemy, g) {
 			print(len(g.enemies), " Enemies left\n")
 			g.enemies = append(g.enemies[:i], g.enemies[i+1:]...)
 			g.playerBullet = nil
@@ -228,6 +242,36 @@ func (g *Game) enemyHit() bool {
 			print("Score: ", g.score, "\n")
 			return true
 		}
+	}
+	return false
+}
+
+func ufoHit(ufo *Enemy, g *Game) bool {
+	if ufo == nil || g.playerBullet == nil {
+		return false
+	}
+	if enemyHitCheck(*g.ufo, g) {
+		g.ufo = nil
+		g.score += 100
+		return true
+	}
+	return false
+}
+
+func enemyHitCheck(enemy Enemy, g *Game) bool {
+	const (
+		enemySize   = 32
+		enemyHeight = 32
+	)
+	// Check if bullet is within vertical range of enemy
+	bulletInVerticalRange := g.playerBullet.bulletY == enemy.enemyY
+
+	// Check if bullet hits enemy horizontally
+	bulletHitsHorizontally := g.playerBullet.bulletX >= enemy.enemyX-enemySize/2 &&
+		g.playerBullet.bulletX <= enemy.enemyX+enemySize/2
+
+	if bulletInVerticalRange && bulletHitsHorizontally {
+		return true
 	}
 	return false
 }
@@ -334,6 +378,11 @@ func init() {
 		log.Fatal(err)
 	}
 	octopusImage = ebiten.NewImageFromImage(img)
+	img, _, err = ebitenutil.NewImageFromFile("assets/ufo.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	ufoImage = ebiten.NewImageFromImage(img)
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -352,6 +401,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.player.draw(screen)
 	g.playerBullet.draw(screen)
 	g.enemies.draw(screen)
+	g.ufo.draw(screen)
 	g.enemyBullets.draw(screen)
 	g.scoreDisplay(screen)
 	g.livesDisplay(screen)
@@ -392,6 +442,9 @@ func (g *Game) Update() error {
 			if g.lives == 0 {
 				g.mode = ModeGameOver
 			}
+		}
+		if ufoHit(g.ufo, g) {
+			print("UFO Hit!\n")
 		}
 	}
 	return nil
