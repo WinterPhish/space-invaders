@@ -108,10 +108,16 @@ func (g *Game) keyPressed() {
 }
 
 func moveRight(g *Game) {
+	if g.player.playerX+32 >= frameWidth {
+		return
+	}
 	g.player.vPlayerX += 4
 }
 
 func moveLeft(g *Game) {
+	if g.player.playerX <= 0 {
+		return
+	}
 	g.player.vPlayerX -= 4
 }
 
