@@ -40,6 +40,8 @@ var (
 	octopusImage2 *ebiten.Image
 	ufoImage      *ebiten.Image
 	deathImage    *ebiten.Image
+	playerDeath1  *ebiten.Image
+	playerDeath2  *ebiten.Image
 )
 
 type Game struct {
@@ -56,9 +58,11 @@ type Game struct {
 }
 
 type Player struct {
-	playerX  int
-	vPlayerX int
-	vPlayerY int
+	playerX    int
+	vPlayerX   int
+	vPlayerY   int
+	dying      bool
+	deathFrame int
 }
 
 type PlayerBullet struct {
@@ -147,6 +151,7 @@ func spawnWave(g *Game) {
 }
 
 func (e *Enemies) update(g *Game) {
+	g.enemyHit()
 	if len(*e) == 0 {
 		spawnWave(g)
 		print("Spawned Enemy on level ", g.level, "\n")
@@ -274,7 +279,7 @@ func (p *Player) update() {
 }
 
 func (g *Game) enemyHit() bool {
-
+	ufoHit(g.ufo, g)
 	if g.playerBullet == nil || len(g.enemies) == 0 {
 		return false
 	}
@@ -342,7 +347,8 @@ func enemyHitCheck(enemy *Enemy, g *Game) bool {
 }
 
 func (g *Game) playerHit() bool {
-	for _, bullet := range g.enemyBullets {
+	for i := len(g.enemyBullets) - 1; i >= 0; i-- {
+		bullet := g.enemyBullets[i]
 		// Check if bullet is within vertical range of player
 		bulletInVerticalRange := bullet.bulletY == playerY
 
@@ -350,6 +356,8 @@ func (g *Game) playerHit() bool {
 		bulletHitsHorizontally := bullet.bulletX >= g.player.playerX-16 &&
 			bullet.bulletX <= g.player.playerX+16
 		if bulletInVerticalRange && bulletHitsHorizontally {
+			// remove the bullet that hit the player
+			g.enemyBullets = append(g.enemyBullets[:i], g.enemyBullets[i+1:]...)
 			return true
 		}
 	}
@@ -359,6 +367,21 @@ func (g *Game) playerHit() bool {
 func (p *Player) draw(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(p.playerX), float64(playerY))
+	if p.dying {
+		// show two-frame static death images: first half then second half
+		if p.deathFrame <= 10 {
+			if playerDeath1 != nil {
+				screen.DrawImage(playerDeath1, op)
+				return
+			}
+		} else {
+			if playerDeath2 != nil {
+				screen.DrawImage(playerDeath2, op)
+				return
+			}
+		}
+	}
+	// default: normal player
 	screen.DrawImage(playerImage, op)
 }
 
@@ -428,6 +451,18 @@ func init() {
 		log.Fatal(err)
 	}
 	bulletImage = ebiten.NewImageFromImage(img)
+	img, _, err = ebitenutil.NewImageFromFile("assets/playerDeath1.png")
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		playerDeath1 = ebiten.NewImageFromImage(img)
+	}
+	img, _, err = ebitenutil.NewImageFromFile("assets/playerDeath2.png")
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		playerDeath2 = ebiten.NewImageFromImage(img)
+	}
 	img, _, err = ebitenutil.NewImageFromFile("assets/squid.png")
 	if err != nil {
 		log.Fatal(err)
@@ -520,18 +555,29 @@ func (g *Game) Update() error {
 		g.enemies.update(g)
 		g.enemyBullets.update()
 		g.updateDeathAnims()
-		if g.enemyHit() {
-			print("Enemy Hit!\n")
+
+		// start player death sequence if hit and not already dying
+		if g.playerHit() && !g.player.dying {
+			g.player.dying = true
+			g.player.deathFrame = 0
 		}
-		if g.playerHit() {
-			g.lives--
-			print("Player hit! Lives left: ", g.lives, "\n")
-			if g.lives == 0 {
-				g.mode = ModeGameOver
+
+		// handle player death sequence
+		if g.player.dying {
+			g.player.deathFrame++
+			// After 20 frames, finish death sequence: lose a life, reset player
+			if g.player.deathFrame > 20 {
+				g.player.dying = false
+				g.player.deathFrame = 0
+				g.lives--
+				// clear enemy bullets to give player a brief reprieve
+				g.enemyBullets = nil
+				// reset player position to center
+				g.player.playerX = frameWidth / 2
+				if g.lives <= 0 {
+					g.mode = ModeGameOver
+				}
 			}
-		}
-		if ufoHit(g.ufo, g) {
-			print("UFO Hit!\n")
 		}
 	}
 	return nil
