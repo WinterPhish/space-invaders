@@ -30,13 +30,16 @@ const (
 )
 
 var (
-	playerImage  *ebiten.Image
-	bulletImage  *ebiten.Image
-	squidImage   *ebiten.Image
-	crabImage    *ebiten.Image
-	octopusImage *ebiten.Image
-	ufoImage     *ebiten.Image
-	deathImage   *ebiten.Image
+	playerImage   *ebiten.Image
+	bulletImage   *ebiten.Image
+	squidImage    *ebiten.Image
+	crabImage     *ebiten.Image
+	octopusImage  *ebiten.Image
+	squidImage2   *ebiten.Image
+	crabImage2    *ebiten.Image
+	octopusImage2 *ebiten.Image
+	ufoImage      *ebiten.Image
+	deathImage    *ebiten.Image
 )
 
 type Game struct {
@@ -77,6 +80,7 @@ type Enemy struct {
 	vEnemyX   int
 	enemyType int
 	dead      bool
+	frame     int
 }
 
 type GameMode int
@@ -183,6 +187,10 @@ func (e *Enemies) update(g *Game) {
 	// update positions using velocities and possibly shoot.
 	for i := range *e {
 		(*e)[i].enemyShoot(g)
+		(*e)[i].frame++
+		if (*e)[i].frame > 60 {
+			(*e)[i].frame = 0
+		}
 		(*e)[i].enemyX += (*e)[i].vEnemyX
 		(*e)[i].enemyY += (*e)[i].vEnemyY
 	}
@@ -194,11 +202,23 @@ func (e *Enemies) draw(screen *ebiten.Image) {
 		op.GeoM.Translate(float64(enemy.enemyX), float64(enemy.enemyY))
 		switch enemy.enemyType {
 		case Squid:
-			screen.DrawImage(squidImage, op)
+			if enemy.frame < 30 {
+				screen.DrawImage(squidImage, op)
+			} else {
+				screen.DrawImage(squidImage2, op)
+			}
 		case Crab:
-			screen.DrawImage(crabImage, op)
+			if enemy.frame < 30 {
+				screen.DrawImage(crabImage, op)
+			} else {
+				screen.DrawImage(crabImage2, op)
+			}
 		case Octopus:
-			screen.DrawImage(octopusImage, op)
+			if enemy.frame < 30 {
+				screen.DrawImage(octopusImage, op)
+			} else {
+				screen.DrawImage(octopusImage2, op)
+			}
 		}
 	}
 }
@@ -413,6 +433,21 @@ func init() {
 		log.Fatal(err)
 	}
 	octopusImage = ebiten.NewImageFromImage(img)
+	img, _, err = ebitenutil.NewImageFromFile("assets/squid2.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	squidImage2 = ebiten.NewImageFromImage(img)
+	img, _, err = ebitenutil.NewImageFromFile("assets/crab2.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	crabImage2 = ebiten.NewImageFromImage(img)
+	img, _, err = ebitenutil.NewImageFromFile("assets/octopus2.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	octopusImage2 = ebiten.NewImageFromImage(img)
 	img, _, err = ebitenutil.NewImageFromFile("assets/ufo.png")
 	if err != nil {
 		log.Fatal(err)
