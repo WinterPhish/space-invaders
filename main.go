@@ -30,12 +30,14 @@ const (
 )
 
 var (
-	playerImage  *ebiten.Image
-	bulletImage  *ebiten.Image
-	squidImage   *ebiten.Image
-	crabImage    *ebiten.Image
-	octopusImage *ebiten.Image
-	ufoImage     *ebiten.Image
+	playerImage   *ebiten.Image
+	bulletImage   *ebiten.Image
+	squidImage    *ebiten.Image
+	crabImage     *ebiten.Image
+	octopusImage  *ebiten.Image
+	ufoImage      *ebiten.Image
+	deathImage    *ebiten.Image
+	ufoDeathImage *ebiten.Image
 )
 
 type Game struct {
@@ -43,6 +45,7 @@ type Game struct {
 	playerBullet *PlayerBullet
 	enemies      Enemies
 	enemyBullets EnemyBullets
+	deathAnims   []DeathAnimation
 	mode         GameMode
 	ufo          *Enemy
 	score        int
@@ -74,6 +77,7 @@ type Enemy struct {
 	vEnemyY   int
 	vEnemyX   int
 	enemyType int
+	dead      bool
 }
 
 type GameMode int
@@ -81,6 +85,12 @@ type GameMode int
 type Enemies []Enemy
 
 type EnemyBullets []EnemyBullet
+
+type DeathAnimation struct {
+	enemyX int
+	enemyY int
+	frame  int
+}
 
 func (g *Game) keyPressed() {
 	if ebiten.IsKeyPressed(ebiten.KeyRight) {
@@ -194,6 +204,23 @@ func (e *Enemies) draw(screen *ebiten.Image) {
 	}
 }
 
+func (g *Game) updateDeathAnims() {
+	for i := len(g.deathAnims) - 1; i >= 0; i-- {
+		g.deathAnims[i].frame++
+		if g.deathAnims[i].frame > 5 {
+			g.deathAnims = append(g.deathAnims[:i], g.deathAnims[i+1:]...)
+		}
+	}
+}
+
+func (g *Game) drawDeathAnims(screen *ebiten.Image) {
+	for _, anim := range g.deathAnims {
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(anim.enemyX), float64(anim.enemyY))
+		screen.DrawImage(deathImage, op)
+	}
+}
+
 func (e *Enemy) draw(screen *ebiten.Image) {
 	if e == nil {
 		return
@@ -226,8 +253,12 @@ func (g *Game) enemyHit() bool {
 	for i, enemy := range g.enemies {
 
 		// Check if bullet is within vertical range of enemy
-		if enemyHitCheck(enemy, g) {
-			print(len(g.enemies), " Enemies left\n")
+		if enemyHitCheck(&enemy, g) {
+			g.deathAnims = append(g.deathAnims, DeathAnimation{
+				enemyX: enemy.enemyX,
+				enemyY: enemy.enemyY,
+				frame:  0,
+			})
 			g.enemies = append(g.enemies[:i], g.enemies[i+1:]...)
 			g.playerBullet = nil
 			if enemy.enemyType == Squid {
@@ -250,7 +281,12 @@ func ufoHit(ufo *Enemy, g *Game) bool {
 	if ufo == nil || g.playerBullet == nil {
 		return false
 	}
-	if enemyHitCheck(*g.ufo, g) {
+	if enemyHitCheck(ufo, g) {
+		g.deathAnims = append(g.deathAnims, DeathAnimation{
+			enemyX: ufo.enemyX,
+			enemyY: ufo.enemyY,
+			frame:  0,
+		})
 		g.ufo = nil
 		g.score += 100
 		return true
@@ -258,7 +294,7 @@ func ufoHit(ufo *Enemy, g *Game) bool {
 	return false
 }
 
-func enemyHitCheck(enemy Enemy, g *Game) bool {
+func enemyHitCheck(enemy *Enemy, g *Game) bool {
 	const (
 		enemySize   = 32
 		enemyHeight = 32
@@ -383,6 +419,11 @@ func init() {
 		log.Fatal(err)
 	}
 	ufoImage = ebiten.NewImageFromImage(img)
+	img, _, err = ebitenutil.NewImageFromFile("assets/death.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+	deathImage = ebiten.NewImageFromImage(img)
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -401,6 +442,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.player.draw(screen)
 	g.playerBullet.draw(screen)
 	g.enemies.draw(screen)
+	g.drawDeathAnims(screen)
 	g.ufo.draw(screen)
 	g.enemyBullets.draw(screen)
 	g.scoreDisplay(screen)
@@ -433,6 +475,7 @@ func (g *Game) Update() error {
 		g.playerBullet.update(g)
 		g.enemies.update(g)
 		g.enemyBullets.update()
+		g.updateDeathAnims()
 		if g.enemyHit() {
 			print("Enemy Hit!\n")
 		}
