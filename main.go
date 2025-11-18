@@ -30,14 +30,13 @@ const (
 )
 
 var (
-	playerImage   *ebiten.Image
-	bulletImage   *ebiten.Image
-	squidImage    *ebiten.Image
-	crabImage     *ebiten.Image
-	octopusImage  *ebiten.Image
-	ufoImage      *ebiten.Image
-	deathImage    *ebiten.Image
-	ufoDeathImage *ebiten.Image
+	playerImage  *ebiten.Image
+	bulletImage  *ebiten.Image
+	squidImage   *ebiten.Image
+	crabImage    *ebiten.Image
+	octopusImage *ebiten.Image
+	ufoImage     *ebiten.Image
+	deathImage   *ebiten.Image
 )
 
 type Game struct {
