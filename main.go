@@ -192,13 +192,17 @@ func (e *Enemies) update(g *Game) {
 
 	// update positions using velocities and possibly shoot.
 	for i := range *e {
-		(*e)[i].enemyShoot(g)
-		(*e)[i].frame++
-		if (*e)[i].frame > 60 {
-			(*e)[i].frame = 0
+		enemy := &(*e)[i]
+		enemy.enemyShoot(g)
+		enemy.frame++
+		if enemy.frame > 60 {
+			enemy.frame = 0
 		}
-		(*e)[i].enemyX += (*e)[i].vEnemyX
-		(*e)[i].enemyY += (*e)[i].vEnemyY
+		enemy.enemyX += enemy.vEnemyX
+		enemy.enemyY += enemy.vEnemyY
+		if enemy.enemyY >= playerY {
+			g.mode = ModeGameOver
+		}
 	}
 }
 
