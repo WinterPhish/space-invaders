@@ -22,6 +22,7 @@ const (
 	ModePlaying
 	ModePause
 	ModeGameOver
+	ModeWon
 
 	Squid = iota
 	Octopus
@@ -112,14 +113,14 @@ func (g *Game) keyPressed() {
 }
 
 func moveRight(g *Game) {
-	if g.player.playerX+32 >= frameWidth {
+	if g.player.playerX+32 >= frameWidth || g.player.dying {
 		return
 	}
 	g.player.vPlayerX += 4
 }
 
 func moveLeft(g *Game) {
-	if g.player.playerX <= 0 {
+	if g.player.playerX <= 0 || g.player.dying {
 		return
 	}
 	g.player.vPlayerX -= 4
@@ -153,13 +154,15 @@ func spawnWave(g *Game) {
 func (e *Enemies) update(g *Game) {
 	g.enemyHit()
 	if len(*e) == 0 {
-		spawnWave(g)
-		print("Spawned Enemy on level ", g.level, "\n")
+		if g.level == 0 {
+			spawnWave(g)
+		} else {
+			g.mode = ModeWon
+		}
 	}
 
 	if randomNumber := rand.Float64(); randomNumber < 0.001 && g.ufo == nil {
 		g.ufo = &Enemy{enemyX: 10, enemyY: 16, vEnemyX: 2, enemyType: Ufo}
-		print("UFO Spawned!\n")
 	}
 
 	// Detect if any enemy hit a boundary. Do not modify velocities
@@ -265,7 +268,7 @@ func (e *Enemy) draw(screen *ebiten.Image) {
 }
 
 func (e Enemy) enemyShoot(g *Game) {
-	if randomNumber := rand.Float64(); randomNumber < 0.0005+float64(g.level)*0.0001 {
+	if randomNumber := rand.Float64(); randomNumber < 0.0005+float64(g.level)*0.0002 {
 		print("Enemy at (", e.enemyX, ",", e.enemyY, ") shoots!\n")
 		g.enemyBullets = append(g.enemyBullets, EnemyBullet{bulletX: e.enemyX, bulletY: e.enemyY + 16, vBulletY: 4})
 	}
@@ -322,6 +325,7 @@ func ufoHit(ufo *Enemy, g *Game) bool {
 			frame:  0,
 		})
 		g.ufo = nil
+		g.playerBullet = nil
 		g.score += 100
 		return true
 	}
@@ -369,7 +373,7 @@ func (p *Player) draw(screen *ebiten.Image) {
 	op.GeoM.Translate(float64(p.playerX), float64(playerY))
 	if p.dying {
 		// show two-frame static death images: first half then second half
-		if p.deathFrame <= 10 {
+		if p.deathFrame <= 20 {
 			if playerDeath1 != nil {
 				screen.DrawImage(playerDeath1, op)
 				return
@@ -514,8 +518,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		ebitenutil.DebugPrintAt(screen, "Game Paused. Press P to Resume", frameWidth/2-120, frameHeight/2)
 		return
 	}
+	if g.mode == ModeWon {
+		ebitenutil.DebugPrintAt(screen, fmt.Sprint("You won! Entering level ", g.level), frameWidth/2-100, frameHeight/2)
+		return
+	}
 	if g.mode == ModeGameOver {
 		ebitenutil.DebugPrintAt(screen, "Game Over! Press R to Restart", frameWidth/2-120, frameHeight/2)
+		ebitenutil.DebugPrintAt(screen, fmt.Sprint("Score: ", g.score), frameWidth/2 -120, frameHeight/2 + 30)
 		return
 	}
 	g.player.draw(screen)
@@ -531,13 +540,22 @@ func (g *Game) Draw(screen *ebiten.Image) {
 func (g *Game) Update() error {
 	if g.mode == ModeGameOver {
 		if inpututil.IsKeyJustPressed(ebiten.KeyR) {
-			*g = Game{mode: ModePlaying}
+			*g = Game{mode: ModePlaying, lives: 3, ufo: nil}
 		}
 		return nil
 	}
 	if g.mode == ModeStart {
 		if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 			g.mode = ModePlaying
+			spawnWave(g)
+		}
+		return nil
+	}
+	if g.mode == ModeWon {
+		if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+			g.mode = ModePlaying
+			g.ufo = nil
+			spawnWave(g)
 		}
 		return nil
 	}
@@ -565,8 +583,8 @@ func (g *Game) Update() error {
 		// handle player death sequence
 		if g.player.dying {
 			g.player.deathFrame++
-			// After 20 frames, finish death sequence: lose a life, reset player
-			if g.player.deathFrame > 20 {
+			// After 40 frames, finish death sequence: lose a life, reset player
+			if g.player.deathFrame > 40 {
 				g.player.dying = false
 				g.player.deathFrame = 0
 				g.lives--
