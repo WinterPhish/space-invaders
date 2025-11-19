@@ -148,7 +148,6 @@ func spawnWave(g *Game) {
 	for i := range 11 {
 		g.enemies = append(g.enemies, Enemy{enemyX: i * 32, enemyY: enemyY + 128, vEnemyY: 0, vEnemyX: 0, enemyType: Octopus})
 	}
-	g.level++
 }
 
 func (e *Enemies) update(g *Game) {
@@ -156,8 +155,10 @@ func (e *Enemies) update(g *Game) {
 	if len(*e) == 0 {
 		if g.level == 0 {
 			spawnWave(g)
+			g.level++
 		} else {
 			g.mode = ModeWon
+			g.level++
 		}
 	}
 
@@ -269,7 +270,6 @@ func (e *Enemy) draw(screen *ebiten.Image) {
 
 func (e Enemy) enemyShoot(g *Game) {
 	if randomNumber := rand.Float64(); randomNumber < 0.0005+float64(g.level)*0.0002 {
-		print("Enemy at (", e.enemyX, ",", e.enemyY, ") shoots!\n")
 		g.enemyBullets = append(g.enemyBullets, EnemyBullet{bulletX: e.enemyX, bulletY: e.enemyY + 16, vBulletY: 4})
 	}
 }
@@ -307,7 +307,6 @@ func (g *Game) enemyHit() bool {
 			if enemy.enemyType == Octopus {
 				g.score += 30
 			}
-			print("Score: ", g.score, "\n")
 			return true
 		}
 	}
@@ -520,11 +519,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	if g.mode == ModeWon {
 		ebitenutil.DebugPrintAt(screen, fmt.Sprint("You won! Entering level ", g.level), frameWidth/2-100, frameHeight/2)
+		ebitenutil.DebugPrintAt(screen, "Press SPACE to continue", frameWidth/2-80, frameHeight/2+30)
 		return
 	}
 	if g.mode == ModeGameOver {
 		ebitenutil.DebugPrintAt(screen, "Game Over! Press R to Restart", frameWidth/2-120, frameHeight/2)
-		ebitenutil.DebugPrintAt(screen, fmt.Sprint("Score: ", g.score), frameWidth/2 -120, frameHeight/2 + 30)
+		ebitenutil.DebugPrintAt(screen, fmt.Sprint("Score: ", g.score), frameWidth/2-120, frameHeight/2+30)
 		return
 	}
 	g.player.draw(screen)
